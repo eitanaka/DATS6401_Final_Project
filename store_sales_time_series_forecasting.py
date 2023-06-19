@@ -11,11 +11,25 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 # Data Loading
-train_df = pd.read_csv('/Users/eitanaka/Documents/GitHub/DATS6401_Final_Project/datasets/train.csv')
+# train df
+url1 = 'https://media.githubusercontent.com/media/eitanaka/DATS6401_Final_Project/main/datasets/train.csv'
+train_df = pd.read_csv(url1)
 print(train_df.head().to_string())
 print(train_df.shape)
 train_df['data'] = pd.to_datetime(train_df['date'])
 print(train_df.info())
+# holidays_events.csv
+url2 = 'https://raw.githubusercontent.com/eitanaka/DATS6401_Final_Project/main/datasets/holidays_events.csv'
+holidays_events = pd.read_csv(url2)
+# oil.csv
+url3 = 'https://raw.githubusercontent.com/eitanaka/DATS6401_Final_Project/main/datasets/oil.csv'
+oil = pd.read_csv(url3)
+# stores.csv
+url4 = 'https://raw.githubusercontent.com/eitanaka/DATS6401_Final_Project/main/datasets/stores.csv'
+stores = pd.read_csv(url4)
+# transactions.csv
+url5 = 'https://raw.githubusercontent.com/eitanaka/DATS6401_Final_Project/main/datasets/transactions.csv'
+transactions = pd.read_csv(url5)
 
 # 1. Cover Page
 # 2. Table of Contents
