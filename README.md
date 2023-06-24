@@ -47,7 +47,7 @@ The code utilizes the following Python libraries:
 - dash
 
 ## Contact
-For any questions or suggestions, feel free to contact Ei Tanaka at [email address].
+For any questions or suggestions, feel free to contact Ei Tanaka at [ei.tanaka@gwmail.gwu.edu].
 
 ## License
 This project is licensed under the [MIT License](LICENSE).
