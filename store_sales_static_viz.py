@@ -4,126 +4,72 @@ Name: Ei Tanaka
 Datasets: https://www.kaggle.com/competitions/store-sales-time-series-forecasting/data
 Kaggle Project: Store Sales time series forecasting
 """
-# ============================================================
-# 1. Pre-processing Datasets
-# ============================================================
-# ============================================================
-# 1.1 Loading Data
-# ============================================================
+
+# Loading data
 import numpy as np
 import pandas as pd
-
-url1 = 'https://media.githubusercontent.com/media/eitanaka/StoreSalesVisualization/main/datasets/train.csv'
-url2 = 'https://raw.githubusercontent.com/eitanaka/StoreSalesVisualization/main/datasets/stores.csv'
-
-train_df = pd.read_csv(url1)
-stores = pd.read_csv(url2)
-
-print(train_df.head(5).to_string())
-print(stores.head(5).to_string())
-# ============================================================
-# 1.2 Handling Identifiers
-# ============================================================
-train_df = train_df.drop('id', axis=1)
-
-# ============================================================
-# 1.3 Handling Missing values
-# ============================================================
-print(train_df.isnull().sum()) # non-null
-print(stores.isnull().sum()) # non-null
-
-# ============================================================
-# 1.4 Creating Lists of family and store number
-# ============================================================
-family_list = train_df['family'].unique()
-store_list = stores['store_nbr'].unique()
-city_list = stores['city'].unique()
-state_list = stores['state'].unique()
-type_list = stores['type'].unique()
-
-print(f'The families are following:\n{family_list}')
-print(f'The store numbers are following: \n{store_list}')
-print(f'The cities are following: \n{city_list}')
-print(f'The states are following: \n{state_list}')
-print(f'The types are following: \n{type_list}')
-
-# ============================================================
-# 1.5 Mergin train_df and stores on store number ('store_nbr)
-# ============================================================
-train_merged = pd.merge(train_df, stores, on='store_nbr')
-print(train_merged.head(5).to_string())
-
-# ============================================================
-# 1.6 Handling Date time objcets
-# ============================================================
-train_merged['date'] = pd.to_datetime(train_merged['date'])
-train_merged['month'] = pd.to_datetime(train_merged['date']).dt.month
-train_merged['day'] = pd.to_datetime(train_merged['date']).dt.day
-train_merged['day_name'] = pd.to_datetime(train_merged['date']).dt.day_name()
-train_merged['year'] = pd.to_datetime(train_merged['date']).dt.year
-print(train_merged.head(1).to_string())
-
-# ============================================================
-# 1.7 Data Shapes
-# ============================================================
-print(f'Number of train data set samples: {train_merged.shape}')
-print(train_merged.info())
-
-# ===============================================================
-# 1.8 Remove store sales less than equal to 0 to get more insight
-# ===============================================================
-sales_df = train_merged[train_merged['sales'] > 0]
-print(f'The shape removing sales less than equal to 0: {sales_df.shape}')
-
-# ============================================================
-# 2. Outlier Detection & removal for numerical data
-# ============================================================
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# Boxplot
-plt.figure(figsize=(10,5))
-sns.boxplot(x = 'sales', data = sales_df)
-plt.title('Boxplot of Sales (before removing outliers)')
-plt.xlabel('Sales')
-plt.ylabel('Frequency')
-plt.show()
-
-# Removal using IQR method
-Q1 = sales_df['sales'].quantile(0.25)
-Q3 = sales_df['sales'].quantile(0.75)
-IQR = Q3 - Q1
-filtered_entries = ((sales_df['sales'] >= Q1 - 1.5 * IQR) & (sales_df['sales'] <= Q3 + 1.5 * IQR))
-sales_df = sales_df[filtered_entries]
-
-print(f'The shape after removing outliers: {sales_df.shape}')
-
-# Boxplot after removing outliers
-plt.figure(figsize=(10,5))
-sns.boxplot(x = 'sales', data = sales_df)
-plt.title('Boxplot of Sales (after removing outliers)')
-plt.xlabel('Sales')
-plt.ylabel('Frequency')
-plt.show()
+# need edited
+path = 'datasets/sales.csv'
+sales_df = pd.read_csv(path)
 
 # ============================================================
 # 3. Principal Components Analysis (PCA) for numerical value
 # ============================================================
 from sklearn.decomposition import PCA
+from numpy import linalg as LA
 from sklearn.preprocessing import StandardScaler
 
-X = sales_df.drop(['date', 'store_nbr', 'family', 'city', 'state', 'type', 'cluster'], axis=1)
+# Since there are only two numerical value, I chose features just sales, and onpromotion
+X = sales_df.drop(columns=sales_df.columns.difference(['sales', 'onpromotion'])).values
 X = StandardScaler().fit_transform(X)
 
-# Create a PCA that will retain 99% of the variance
-pca = PCA(n_components=0.95, whiten=True)
+pca = PCA(n_components=2)
+pca.fit(X)
+X_pca = pca.transform(X)
+print(f'explain variance ratio {pca.explained_variance_ratio_}')
 
-# Conduct PCA
-X_pca = pca.fit_transform(X)
+# Data Viz. PCA
+plt.plot(np.arange(1,3), 100*np.cumsum(pca.explained_variance_ratio_))
+plt.xlabel('# of labels')
+plt.ylabel('PCA explained variance ratio')
+var_cumu = np.cumsum(pca.explained_variance_ratio_)*100
+k = np.argmax(var_cumu > 95)
+print('# of components explaining 95% variance ' + str(k+1))
+plt.axvline(x=k+1, color='k', linestyle='--')
+plt.axhline(y=95, color='r', linestyle='--')
+plt.grid()
+plt.show()
 
-# Show results
-print('Original number of features:', X.shape[1])
-print('Reduced number of features:', X_pca.shape[1])
+H = X.T @ X
+a, b = np.linalg.eig(H)
+print("D_Original = ", np.sqrt(a))
+print("The condition number for X is =", LA.cond(X))
+
+pca = PCA(n_components='mle', svd_solver='full')
+pca.fit(X)
+X_pca = pca.transform(X)
+print(f'explain variance ratio {pca.explained_variance_ratio_}')
+
+plt.plot(np.arange(1,2), 100*np.cumsum(pca.explained_variance_ratio_))
+plt.xlabel('# of labels')
+plt.ylabel('PCA explained variance ratio')
+
+var_cumu = np.cumsum(pca.explained_variance_ratio_)*100
+k = np.argmax(var_cumu > 95)
+print('# of components explaining 95% variance ' + str(k+1))
+plt.axvline(x=k+1, color='k', linestyle='--')
+plt.axhline(y=95, color='r', linestyle='--')
+
+plt.grid()
+plt.show()
+
+H_pca = X_pca.T @ X_pca
+a, b = np.linalg.eig(H_pca)
+print("D_reduced = ", np.sqrt(a))
+print("The condition number for X is =", LA.cond(X_pca))
 
 # ============================================================
 # 4. Normality Test
@@ -204,16 +150,23 @@ plt.ylabel("Total Sales")
 plt.grid(True)
 plt.show()
 
-# Group by date and store_nbr for sum of sales (need edited)
+# Group by date and store_nbr for sum of sales
 grouped_date_store = sales_df.groupby(['date', 'store_nbr'])['sales'].sum().reset_index()
 grouped_date_store = grouped_date_store.sort_values(['store_nbr', 'date'])
 
-plt.figure(figsize=(15, 10))
-sns.lineplot(data=grouped_date_store, x='date', y='sales', hue='store_nbr')
-plt.title("Total Sales Volume by Store Over Time")
-plt.xlabel("Date")
-plt.ylabel("Total Sales")
-plt.grid(True)
+# Define the number of subplots and the store number ranges
+num_subplots = 6
+store_ranges = [(1, 10), (11, 20), (21, 30), (31, 40), (41, 50), (51, sales_df['store_nbr'].max())]
+
+fig, axs = plt.subplots(num_subplots, 1, figsize=(15, 15), sharex=True)
+for i, (start, end) in enumerate(store_ranges):
+    subset_data = grouped_date_store[(grouped_date_store['store_nbr'] >= start) & (grouped_date_store['store_nbr'] <= end)]
+    sns.lineplot(data=subset_data, x='date', y='sales', hue='store_nbr', ax=axs[i])
+    axs[i].set_title(f"Store Numbers {start} to {end}")
+    axs[i].set_xlabel("Date")
+    axs[i].set_ylabel("Sales")
+    axs[i].grid(True)
+plt.tight_layout()
 plt.show()
 
 # Group by date and family for sum of sales (need edited)
@@ -257,6 +210,15 @@ plt.title('Total Sales by Product Family')
 plt.xlabel('Product Family')
 plt.ylabel('Total Sales')
 plt.xticks(rotation=90)
+plt.show()
+
+# Average Sales by Holiday Status
+holiday_sales = sales_df.groupby('holiday')['sales'].mean()
+plt.figure(figsize=(10, 6))
+sns.barplot(x=holiday_sales.index, y=holiday_sales.values)
+plt.title('Average Sales by Holiday Status')
+plt.xlabel('Holiday')
+plt.ylabel('Average Sales')
 plt.show()
 
 # ============================================================
@@ -333,7 +295,8 @@ sample_df = sales_df.sample(frac=0.01, random_state=42)
 sns.pairplot(sample_df[['sales',
                         'onpromotion',
                         'store_nbr',
-                        'cluster',]])
+                        'cluster',
+                        'holiday']])
 plt.show()
 
 # ============================================================
@@ -349,12 +312,14 @@ plt.show()
 # ============================================================
 # 8.8 Scatter plot
 # ============================================================
-plt.figure(figsize=(10,6))
-sns.scatterplot(data=sales_df,
+sample_df = sales_df.sample(frac=0.05, random_state=42)
+plt.figure(figsize=(10, 6))
+sns.scatterplot(data=sample_df,
                 x='onpromotion',
-                y='sales')
-plt.title('Scatter plot of Sales vs Store Number')
-plt.xlabel('On-promotion quantitiy')
+                y='sales',
+                hue='holiday')
+plt.title('Scatter plot of Sales vs On-Promotion Quantity')
+plt.xlabel('On-Promotion Quantity')
 plt.ylabel('Sales')
 plt.show()
 
@@ -371,6 +336,7 @@ plt.xlabel('Date')
 plt.ylabel('Total Sales')
 plt.grid(True)
 plt.show()
+
 # ============================================================
 # 8.10 Violin Plot
 # ============================================================
@@ -442,78 +408,3 @@ axes[1, 1].set_title('Scatter Plot')
 
 plt.tight_layout()
 plt.show()
-
-# ============================================================
-# 10. Dashboard
-# ============================================================
-import dash
-import dash_core_components as dcc
-import dash_html_components as html
-from dash.dependencies import Input, Output, State
-import plotly.express as px
-
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWwgP.css']
-app = dash.Dash("Store Sale", external_stylesheets=external_stylesheets)
-
-app.layout = html.Div([
-    html.H1('Store Sales - Time Series', style={'textAlign': 'center'}),
-    dcc.Tabs(id="tabs", children=[
-        dcc.Tab(label='Tab one', children=[
-            html.Div([
-                html.Div('Select Store Number:', style={'marginTop': 10}),
-                dcc.Dropdown(
-                    id='store-dropdown',
-                    options=[{'label': i, 'value': i} for i in train_merged['store_nbr'].unique()],
-                    value=train_merged['store_nbr'].unique()[0]
-                ),
-                html.Div('Range Slider:', style={'marginTop': 10}),
-                dcc.RangeSlider(id='range-slider'),
-                html.Div('Button:', style={'marginTop': 10}),
-                html.Button('Submit', id='submit-button', n_clicks=0),
-                html.Div('Input Field:', style={'marginTop': 10}),
-                dcc.Input(id='input'),
-                html.Div('Output Field:', style={'marginTop': 10}),
-                html.Div(id='output'),
-                html.Div('Text Area:', style={'marginTop': 10}),
-                dcc.Textarea(id='textarea'),
-                html.Div('Check Box:', style={'marginTop': 10}),
-                dcc.Checklist(id='checklist'),
-                html.Div('Radio Items:', style={'marginTop': 10}),
-                dcc.RadioItems(id='radioitems'),
-                html.Div('DatePickerSingle:', style={'marginTop': 10}),
-                dcc.DatePickerSingle(id='datepickersingle'),
-                html.Div('DatePickerRange:', style={'marginTop': 10}),
-                dcc.DatePickerRange(id='datepickerange'),
-                html.Div('Upload Component:', style={'marginTop': 10}),
-                dcc.Upload(id='upload'),
-                html.Div('Download Component:', style={'marginTop': 10}),
-                dcc.Download(id='download'),
-                html.Div('Graph:', style={'marginTop': 10}),
-                dcc.Graph(id='graph1'),
-            ])
-        ]),
-        dcc.Tab(label='Tab two', children=[
-            # Repeat the structure for Tab one and change the ids of the components
-        ]),
-        dcc.Tab(label='Tab three', children=[
-            # Repeat the structure for Tab one and change the ids of the components
-        ]),
-    ]),
-])
-@app.callback(
-    Output('graph1', 'figure'),
-    Input('store-dropdown', 'value')
-)
-def update_graph(store_nbr):
-    filtered_df = train_merged[train_merged['store_nbr'] == store_nbr]
-    fig = px.line(filtered_df, x='date', y='sales', title=f'Store {store_nbr} Sales Over Time')
-    return fig
-
-if __name__ == '__main__':
-    app.run_server(debug=True, port=8000)
-
-# %% [markdown]
-# 17. the soft copy of your python programs
-
-# %% [markdown]
-# 18. readme.txt (explains how to run your python code)
